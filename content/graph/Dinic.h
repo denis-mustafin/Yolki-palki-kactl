@@ -1,53 +1,88 @@
 /**
- * Author: chilli
- * Date: 2019-04-26
- * License: CC0
- * Source: https://cp-algorithms.com/graph/dinic.html
+ * Author: Tikhon228
  * Description: Flow algorithm with complexity $O(VE\log U)$ where $U = \max |\text{cap}|$.
  * $O(\min(E^{1/2}, V^{2/3})E)$ if $U = 1$; $O(\sqrt{V}E)$ for bipartite matching.
- * Status: Tested on SPOJ FASTFLOW and SPOJ MATCHING, stress-tested
  */
 #pragma once
 
-struct Dinic {
-	struct Edge {
-		int to, rev;
-		ll c, oc;
-		ll flow() { return max(oc - c, 0LL); } // if you need flows
-	};
-	vi lvl, ptr, q;
-	vector<vector<Edge>> adj;
-	Dinic(int n) : lvl(n), ptr(n), q(n), adj(n) {}
-	void addEdge(int a, int b, ll c, ll rcap = 0) {
-		adj[a].push_back({b, sz(adj[b]), c, c});
-		adj[b].push_back({a, sz(adj[a]) - 1, rcap, rcap});
-	}
-	ll dfs(int v, int t, ll f) {
-		if (v == t || !f) return f;
-		for (int& i = ptr[v]; i < sz(adj[v]); i++) {
-			Edge& e = adj[v][i];
-			if (lvl[e.to] == lvl[v] + 1)
-				if (ll p = dfs(e.to, t, min(f, e.c))) {
-					e.c -= p, adj[e.to][e.rev].c += p;
-					return p;
-				}
-		}
-		return 0;
-	}
-	ll calc(int s, int t) {
-		ll flow = 0; q[0] = s;
-		rep(L,0,31) do { // 'int L=30' maybe faster for random data
-			lvl = ptr = vi(sz(q));
-			int qi = 0, qe = lvl[s] = 1;
-			while (qi < qe && !lvl[t]) {
-				int v = q[qi++];
-				for (Edge e : adj[v])
-					if (!lvl[e.to] && e.c >> (30 - L))
-						q[qe++] = e.to, lvl[e.to] = lvl[v] + 1;
-			}
-			while (ll p = dfs(s, t, LLONG_MAX)) flow += p;
-		} while (lvl[t]);
-		return flow;
-	}
-	bool leftOfMinCut(int a) { return lvl[a] != 0; }
+
+
+struct Edge {
+	int from, to, cap, nxt;
+	int flow = 0;
+	Edge() {}
+   	Edge(int from, int to, int cap, int nxt) : from(from), to(to), cap(cap), nxt(nxt) {}
 };
+
+struct DinicFlow {
+	static const int inf = 1e9;
+
+	int n;
+	int s, t;
+	vector<Edge> e;
+	vector<int> head;
+	vector<int> dist;
+
+	DinicFlow(int n, int s = -1, int t = -1) : n(n), s(s), t(t), head(vector<int>(n, -1)) {}
+
+
+
+	void add_edge(int from, int to, int cap) {
+		e.emplace_back(from, to, cap, head[from]);
+		head[from] = e.size() - 1;
+		e.emplace_back(to, from, 0, head[to]);
+		head[to] = e.size() - 1;
+	}
+	void add_undir_edge(int from, int to, int cap) {
+    e.emplace_back(from, to, cap, head[from]);
+    head[from] = e.size() - 1;
+    e.emplace_back(to, from, cap, head[to]);
+    head[to] = e.size() - 1;
+  }
+
+  int dfs(int u, int mf) {
+    if (u == t) return mf;
+    int res = 0;
+    for (int& i = head[u]; i != -1; i = e[i].nxt) {
+      Edge& e1 = e[i];
+      if (e1.cap - e1.flow < 1) continue;
+      if (dist[e1.from] + 1 != dist[e1.to]) continue;
+      int x = dfs(e1.to, min(mf - res, e1.cap - e1.flow));
+      if (x == 0) continue;
+      res += x;
+      e1.flow += x;
+      e[i ^ 1].flow -= x;
+      if (e1.cap - e1.flow || mf == res) return res;
+    }
+    return res;
+  }
+
+  int flow() {
+    bool found = true;
+    while (found) {
+      dist.assign(n, inf);
+      queue<int> burn;
+      dist[s] = 0;
+      burn.push(s);
+      while (!burn.empty()) {
+        int at = burn.front();
+        burn.pop();
+        for (int i = head[at]; i != -1; i = e[i].nxt) {
+          if (e[i].cap - e[i].flow < 1) continue;
+          if (dist[at] + 1 >= dist[e[i].to]) continue;
+          dist[e[i].to] = dist[at] + 1;
+          burn.push(e[i].to);
+        }
+      }
+      auto head_copy = head;
+      found = false;
+      while (dfs(s, inf)) found = true;
+      head = head_copy;
+    }
+    ll res = 0;
+    for (int i = head[s]; i != -1; i = e[i].nxt)
+      res += e[i].flow;
+    return res;
+  }
+};
+
