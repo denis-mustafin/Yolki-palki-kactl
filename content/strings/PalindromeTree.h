@@ -51,3 +51,12 @@ int push_back(int last, char c) {
   last = go[last][get_char_id(c)];
   return last;
 }
+
+/* in main
+  node();  0 - odd root
+  node();  1 - even root
+  suff[0] = -1;
+  len[0] = -1;
+  suff[1] = 0;
+  len[1] = 0;
+*/
