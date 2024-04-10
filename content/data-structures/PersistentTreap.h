@@ -1,5 +1,5 @@
 /**
- * Author: Pechalka
+ * Author: Tikhon Evteev
  * Description: Persistent treap with merge, split and finding
  * element by index
  * Time: O(\log N)
