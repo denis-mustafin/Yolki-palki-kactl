@@ -1,41 +1,63 @@
 /**
- * Author: Lukas Polacek
- * Date: 2009-10-28
- * License: CC0
- * Source: Czech graph algorithms book, by Demel. (Tarjan's algorithm)
+ * Author: Kapt
  * Description: Finds strongly connected components in a
- * directed graph. If vertices $u, v$ belong to the same component,
- * we can reach $u$ from $v$ and vice versa.
- * Usage: scc(graph, [\&](vi\& v) { ... }) visits all components
- * in reverse topological order. comp[i] holds the component
- * index of a node (a component only has edges to components with
- * lower index). ncomps will contain the number of components.
+ * directed graph.
  * Time: O(E + V)
- * Status: Bruteforce-tested for N <= 5
  */
 #pragma once
 
-vi val, comp, z, cont;
-int Time, ncomps;
-template<class G, class F> int dfs(int j, G& g, F& f) {
-	int low = val[j] = ++Time, x; z.push_back(j);
-	for (auto e : g[j]) if (comp[e] < 0)
-		low = min(low, val[e] ?: dfs(e,g,f));
+struct SCC {
+  int n;
+  vector<int>* g;
+  vector<int> tin, used, up;
+  int tim = 0;
 
-	if (low == val[j]) {
-		do {
-			x = z.back(); z.pop_back();
-			comp[x] = ncomps;
-			cont.push_back(x);
-		} while (x != j);
-		f(cont); cont.clear();
-		ncomps++;
-	}
-	return val[j] = low;
-}
-template<class G, class F> void scc(G& g, F f) {
-	int n = sz(g);
-	val.assign(n, 0); comp.assign(n, -1);
-	Time = ncomps = 0;
-	rep(i,0,n) if (comp[i] < 0) dfs(i, g, f);
-}
+  SCC(int n): n(n) {
+    g = new vector<int>[n];
+    tin.resize(n, -1);
+    used.resize(n);
+    up.resize(n);
+  }
+
+  ~SCC() {
+    delete[] g;
+  }
+
+  void add_edge(int u, int v) {
+    g[u].push_back(v);
+  }
+
+  vector<int> stk;
+
+  void dfs(int v) {
+    tin[v] = tim++;
+    up[v] = tin[v];
+    stk.push_back(v);
+    used[v] = true;
+    for (int u : g[v]) {
+      if (tin[u] == -1) {
+        dfs(u);
+        up[v] = min(up[v], up[u]);
+      } else if (used[u]) {
+        up[v] = min(up[v], tin[u]);
+      }
+    }
+    if (tin[v] == up[v]) {
+      while (stk.back() != v) {
+        used[stk.back()] = false;
+        stk.pop_back();
+      }
+      used[v] = false;
+      stk.pop_back();
+      /// the component had just beed lifted from the stk
+    }
+  }
+
+  void get() {
+    for (int i = 0; i < n; ++i) {
+      if (tin[i] == -1) {
+        dfs(i);
+      }
+    }
+  }
+};
