@@ -14,3 +14,8 @@
 	\kactlimport{Point3D.h}
 	\kactlimport{3dHull.h}
 	\kactlimport{sphericalDistance.h}
+	
+	\subsection{SolidAngle}
+		$$\Omega = 2 arctg \left(\dfrac{|(r_1, r_2, r_3)|}{r_1r_2r_3+(r_1 \cdot r_2)r_3+(r_2 \cdot r_3)r_1 + (r_3 \cdot r_1)r_2} \right)$$\\
+		$$\Omega = 4 arctg \sqrt{tg(\frac{s}{2}) tg(\frac{s-a}{2}) tg (\frac{s-b}{2}) tg (\frac{s - c}{2})}, s = \frac{a+b+c}{2}$$\\
+		$a, b, c$ - flat angles.
