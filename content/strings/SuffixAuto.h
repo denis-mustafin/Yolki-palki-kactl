@@ -9,7 +9,7 @@
 #pragma once
 
 // maxlen * 2
-const int MAXN = 300'300;
+const int MAXN = 300300;
 const int ALPHA = 26;
 
 int go[MAXN][ALPHA];
