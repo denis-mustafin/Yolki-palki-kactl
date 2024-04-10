@@ -7,7 +7,7 @@
  * requireres define int long long!
  * Time: O(N \log^{?} N) 186ms for n, q = 1e5
  */
- #pragma once
+#pragma once
 
 
 const int INFX = 2e12, INFY = 2e18;

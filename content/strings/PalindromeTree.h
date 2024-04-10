@@ -9,7 +9,7 @@
 #pragma once
 
 // maxlen + eps
-const int MAXSZ = 400'100;
+const int MAXSZ = 400100;
 const int ALPHA = 26;
 
 int go[MAXSZ][ALPHA];
