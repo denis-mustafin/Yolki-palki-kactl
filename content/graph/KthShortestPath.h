@@ -19,7 +19,7 @@ struct Node{
   }
 };
 
-// не знаю, почему столько
+// don't know why
 Node nodes[5000000];
 int nodes_cnt = 0;
 
