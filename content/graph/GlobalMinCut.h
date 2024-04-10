@@ -1,32 +1,56 @@
 /**
- * Author: Simon Lindholm
- * Date: 2021-01-09
- * License: CC0
+ * Author: Vsevolod Nagibin
+ * Date: 2024-04-08
  * Source: https://en.wikipedia.org/wiki/Stoer%E2%80%93Wagner_algorithm
- * Description: Find a global minimum cut in an undirected graph, as represented by an adjacency matrix.
+ * Description: Find a global minimum cut in an undirected weighted graph, as represented by an adjacency matrix.
  * Time: O(V^3)
- * Status: Stress-tested together with GomoryHu
+ * Status: stress tested with dinic
  */
 #pragma once
 
-pair<int, vi> globalMinCut(vector<vi> mat) {
-	pair<int, vi> best = {INT_MAX, {}};
-	int n = sz(mat);
-	vector<vi> co(n);
-	rep(i,0,n) co[i] = {i};
-	rep(ph,1,n) {
-		vi w = mat[0];
-		size_t s = 0, t = 0;
-		rep(it,0,n-ph) { // O(V^2) -> O(E log V) with prio. queue
-			w[t] = INT_MIN;
-			s = t, t = max_element(all(w)) - w.begin();
-			rep(i,0,n) w[i] += mat[t][i];
+// G[i][j] = weight of the edge from i to j
+// symmetric matrix
+pair<int, vector<int>> global_min_cut(vector<vector<int>> G) {
+	int n = (int) G.size();
+	vector<vector<int>> comps(n);
+	for (int i = 0; i < n; ++i)
+		comps[i].resize(1, i);
+	pair<int, vector<int>> ans(1e9, {});
+	for (int i = 0; i < n - 1; ++i) {
+		vector<int> w = G[0];
+		vector<bool> taken(n, false);
+		taken[0] = true;
+		int s = 0, t = 0, last_cost = 0;
+		for (int j = 0; j < n - i - 1; ++j) {
+			int opt = -1;
+			for (int u = 0; u < n; ++u) {
+				if (!taken[u] && !comps[u].empty()) {
+					if (opt == -1 || w[u] > w[opt])
+						opt = u;
+				}
+			}
+			s = t;
+			t = opt;
+			last_cost = w[opt];
+			taken[opt] = true;
+			for (int u = 0; u < n; ++u) {
+				if (!taken[u])
+					w[u] += G[opt][u];
+			}
 		}
-		best = min(best, {w[t] - mat[t][t], co[t]});
-		co[s].insert(co[s].end(), all(co[t]));
-		rep(i,0,n) mat[s][i] += mat[t][i];
-		rep(i,0,n) mat[i][s] = mat[s][i];
-		mat[0][t] = INT_MIN;
+		if (last_cost < ans.first) {
+			ans.first = last_cost;
+			ans.second = comps[t];
+		}
+		// merge s and t
+		for (int u : comps[t]) {
+			comps[s].emplace_back(u);
+		}
+		comps[t].clear();
+		for (int i = 0; i < n; ++i) {
+			G[s][i] += G[t][i];
+			G[i][s] = G[s][i];
+		}
 	}
-	return best;
+	return ans;
 }

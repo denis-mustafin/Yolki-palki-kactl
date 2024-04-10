@@ -1,87 +1,90 @@
 /**
- * Author: Tikhon228
+ * Author: Tikhon Evteev/Vsevolod Nagibin
  * Description: Flow algorithm with complexity $O(VE\log U)$ where $U = \max |\text{cap}|$.
  * $O(\min(E^{1/2}, V^{2/3})E)$ if $U = 1$; $O(\sqrt{V}E)$ for bipartite matching.
  */
 #pragma once
 
-
+// Warning: int flow!
+const int INF = 1e9;
 
 struct Edge {
-	int from, to, cap, nxt;
-	int flow = 0;
-	Edge() {}
-   	Edge(int from, int to, int cap, int nxt) : from(from), to(to), cap(cap), nxt(nxt) {}
+  int from, to;
+  int flow;
+  int cap;
+  Edge(int from, int to, int flow, int cap): from(from), to(to), flow(flow), cap(cap) {}
 };
 
 struct DinicFlow {
-	static const int inf = 1e9;
+  vector<Edge> edges;
+  vector<vector<int>> G;
+  vector<int> last_edge;
+  vector<int> dist;
+  int N;
+  int s, t;
 
-	int n;
-	int s, t;
-	vector<Edge> e;
-	vector<int> head;
-	vector<int> dist;
+  DinicFlow(int N, int s, int t): edges(), G(N), last_edge(N, 0), dist(N, 0), N(N), s(s), t(t) {}
 
-	DinicFlow(int n, int s = -1, int t = -1) : n(n), s(s), t(t), head(vector<int>(n, -1)) {}
-
-
-
-	void add_edge(int from, int to, int cap) {
-		e.emplace_back(from, to, cap, head[from]);
-		head[from] = e.size() - 1;
-		e.emplace_back(to, from, 0, head[to]);
-		head[to] = e.size() - 1;
-	}
-	void add_undir_edge(int from, int to, int cap) {
-    e.emplace_back(from, to, cap, head[from]);
-    head[from] = e.size() - 1;
-    e.emplace_back(to, from, cap, head[to]);
-    head[to] = e.size() - 1;
+  void add_undir_edge(int from, int to, int cap) {
+    G[from].emplace_back(edges.size());
+    edges.emplace_back(from, to, 0, cap);
+    G[to].emplace_back(edges.size());
+    edges.emplace_back(to, from, 0, cap);
   }
 
-  int dfs(int u, int mf) {
-    if (u == t) return mf;
+  void add_dir_edge(int from, int to, int cap) {
+    G[from].emplace_back(edges.size());
+    edges.emplace_back(from, to, 0, cap);
+    G[to].emplace_back(edges.size());
+    edges.emplace_back(to, from, 0, 0);
+  }
+
+  int dfs(int v, int mf) {
+    if (v == t)
+      return mf;
     int res = 0;
-    for (int& i = head[u]; i != -1; i = e[i].nxt) {
-      Edge& e1 = e[i];
-      if (e1.cap - e1.flow < 1) continue;
-      if (dist[e1.from] + 1 != dist[e1.to]) continue;
-      int x = dfs(e1.to, min(mf - res, e1.cap - e1.flow));
-      if (x == 0) continue;
-      res += x;
-      e1.flow += x;
-      e[i ^ 1].flow -= x;
-      if (e1.cap - e1.flow || mf == res) return res;
+    for (; last_edge[v] < (int)G[v].size(); ++last_edge[v]) {
+      int i = G[v][last_edge[v]];
+      if (dist[edges[i].to] != dist[v] + 1)
+        continue;
+      if (edges[i].cap <= edges[i].flow)
+        continue;
+      int cur = dfs(edges[i].to, min(mf - res, edges[i].cap - edges[i].flow));
+      if (cur == 0)
+        continue;
+      res += cur;
+      edges[i].flow += cur;
+      edges[i ^ 1].flow -= cur;
+      if (edges[i].cap > edges[i].flow || res == mf)
+        return res;
     }
     return res;
   }
 
   int flow() {
-    bool found = true;
-    while (found) {
-      dist.assign(n, inf);
-      queue<int> burn;
+    while (true) {
+      dist.assign(N, N);
+      deque<int> Q;
       dist[s] = 0;
-      burn.push(s);
-      while (!burn.empty()) {
-        int at = burn.front();
-        burn.pop();
-        for (int i = head[at]; i != -1; i = e[i].nxt) {
-          if (e[i].cap - e[i].flow < 1) continue;
-          if (dist[at] + 1 >= dist[e[i].to]) continue;
-          dist[e[i].to] = dist[at] + 1;
-          burn.push(e[i].to);
+      Q.emplace_back(s);
+      while (!Q.empty()) {
+        int v = Q.front();
+        Q.pop_front();
+        for (int i : G[v]) {
+          if (edges[i].cap > edges[i].flow && dist[edges[i].to] > dist[v] + 1) {
+            dist[edges[i].to] = dist[v] + 1;
+            Q.emplace_back(edges[i].to); 
+          }
         }
       }
-      auto head_copy = head;
-      found = false;
-      while (dfs(s, inf)) found = true;
-      head = head_copy;
+      if (dist[t] == N)
+        break;
+      fill(last_edge.begin(), last_edge.end(), 0);
+      while (dfs(s, INF));
     }
-    ll res = 0;
-    for (int i = head[s]; i != -1; i = e[i].nxt)
-      res += e[i].flow;
+    int res = 0;
+    for (int i : G[s])
+      res += edges[i].flow;
     return res;
   }
 };

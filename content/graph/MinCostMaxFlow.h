@@ -1,91 +1,101 @@
 /**
- * Author: Stanford
- * Date: Unknown
- * Source: Stanford Notebook
+ * Author: Tikhon Evteev/Vsevolod Nagibin
+ * Date: 2024-04-08
  * Description: Min-cost max-flow.
- *  If costs can be negative, call setpi before maxflow, but note that negative cost cycles are not supported.
- *  To obtain the actual flow, look at positive values only.
- * Status: Tested on kattis:mincostmaxflow, stress-tested against another implementation
- * Time: $O(F E \log(V))$ where F is max flow. $O(VE)$ for setpi.
+ * Status: not tested
  */
 #pragma once
 
-// #include <bits/extc++.h> /// include-line, keep-include
+// Warning: inf flow and cost!
+// Each step works in O(E log V), sometimes O(V^2) may be better
+// Dijkstra can be replaced
+const int INF = 1e9;
 
-const ll INF = numeric_limits<ll>::max() / 4;
+struct CostEdge {
+  int from, to;
+  int flow;
+  int cap;
+  int cost;
+  CostEdge(int from, int to, int flow, int cap, int cost): from(from), to(to), flow(flow), cap(cap), cost(cost) {}
+};
 
-struct MCMF {
-	struct edge {
-		int from, to, rev;
-		ll cap, cost, flow;
-	};
-	int N;
-	vector<vector<edge>> ed;
-	vi seen;
-	vector<ll> dist, pi;
-	vector<edge*> par;
+struct MinCost {
+  vector<CostEdge> edges;
+  vector<vector<int>> G;
+  vector<int> dist;
+  vector<int> potential;
+  vector<int> par;
+  int N;
+  int s, t;
 
-	MCMF(int N) : N(N), ed(N), seen(N), dist(N), pi(N), par(N) {}
+  MinCost(int N, int s, int t): edges(), G(N), dist(N), potential(N), par(N), N(N), s(s), t(t) {}
 
-	void addEdge(int from, int to, ll cap, ll cost) {
-		if (from == to) return;
-		ed[from].push_back(edge{ from,to,sz(ed[to]),cap,cost,0 });
-		ed[to].push_back(edge{ to,from,sz(ed[from])-1,0,-cost,0 });
-	}
+  void add_dir_edge(int from, int to, int cap, int cost) {
+    G[from].emplace_back(edges.size());
+    edges.emplace_back(from, to, 0, cap, cost);
+    G[to].emplace_back(edges.size());
+    edges.emplace_back(to, from, 0, 0, -cost);
+  }
 
-	void path(int s) {
-		fill(all(seen), 0);
-		fill(all(dist), INF);
-		dist[s] = 0; ll di;
+  void calc_potential() {
+    for (int i = 0; i < N; ++i) {
+      for (auto e : edges) {
+        if (e.flow < e.cap)
+          potential[e.to] = min(potential[e.to], potential[e.from] + e.cost);
+      }
+    }
+  }
 
-		__gnu_pbds::priority_queue<pair<ll, int>> q;
-		vector<decltype(q)::point_iterator> its(N);
-		q.push({ 0, s });
+  int flow;
+  int cost;
 
-		while (!q.empty()) {
-			s = q.top().second; q.pop();
-			seen[s] = 1; di = dist[s] + pi[s];
-			for (edge& e : ed[s]) if (!seen[e.to]) {
-				ll val = di - pi[e.to] + e.cost;
-				if (e.cap - e.flow > 0 && val < dist[e.to]) {
-					dist[e.to] = val;
-					par[e.to] = &e;
-					if (its[e.to] == q.end())
-						its[e.to] = q.push({ -dist[e.to], e.to });
-					else
-						q.modify(its[e.to], { -dist[e.to], e.to });
-				}
-			}
-		}
-		rep(i,0,N) pi[i] = min(pi[i] + dist[i], INF);
-	}
+  bool step() {
+    fill(dist.begin(), dist.end(), INF);
+    fill(par.begin(), par.end(), -1);
+    set<pair<int, int>> Q;
+    dist[s] = 0;
+    Q.emplace(0, s);
+    while (!Q.empty()) {
+      int v = Q.begin()->second;
+      Q.erase(Q.begin());
+      for (int i : G[v]) {
+        if (edges[i].cap > edges[i].flow) {
+          int u = edges[i].to;
+          int opt = dist[v] + edges[i].cost + potential[v] - potential[u];
+          if (dist[u] > opt) {
+            Q.erase(make_pair(dist[u], u));
+            par[u] = i;
+            dist[u] = opt;
+            Q.emplace(dist[u], u);
+          }
+        }
+      }
+    }
+    if (dist[t] == INF)
+      return false;
+    int mn = INF;
+    int cur = t;
+    while (cur != s) {
+      mn = min(mn, edges[par[cur]].cap - edges[par[cur]].flow);
+      cur = edges[par[cur]].from;
+    }
+    cur = t;
+    while (cur != s) {
+      edges[par[cur]].flow += mn;
+      edges[par[cur] ^ 1].flow -= mn;
+      cur = edges[par[cur]].from;
+    }
+    cost += mn * (dist[t] + potential[t] - potential[s]);
+    for (int i = 0; i < N; ++i)
+      potential[i] += dist[i];
+    return true;
+  }
 
-	pair<ll, ll> maxflow(int s, int t) {
-		ll totflow = 0, totcost = 0;
-		while (path(s), seen[t]) {
-			ll fl = INF;
-			for (edge* x = par[t]; x; x = par[x->from])
-				fl = min(fl, x->cap - x->flow);
-
-			totflow += fl;
-			for (edge* x = par[t]; x; x = par[x->from]) {
-				x->flow += fl;
-				ed[x->to][x->rev].flow -= fl;
-			}
-		}
-		rep(i,0,N) for(edge& e : ed[i]) totcost += e.cost * e.flow;
-		return {totflow, totcost/2};
-	}
-
-	// If some costs can be negative, call this before maxflow:
-	void setpi(int s) { // (otherwise, leave this out)
-		fill(all(pi), INF); pi[s] = 0;
-		int it = N, ch = 1; ll v;
-		while (ch-- && it--)
-			rep(i,0,N) if (pi[i] != INF)
-			  for (edge& e : ed[i]) if (e.cap)
-				  if ((v = pi[i] + e.cost) < pi[e.to])
-					  pi[e.to] = v, ch = 1;
-		assert(it >= 0); // negative cost cycle
-	}
+  pair<int, int> min_cost_max_flow() {
+    flow = 0;
+    cost = 0;
+    calc_potential();
+    while (step());
+    return make_pair(cost, flow);
+  }
 };
